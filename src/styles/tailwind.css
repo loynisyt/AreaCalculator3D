@@ -1,0 +1,6 @@
+/* 1. Import silnika Tailwinda v4 */
+@import "tailwindcss";
+
+/* 2. Import Twoich zmiennych i motywu (theme.css) */
+@import "./theme.css";
+
