@@ -19,6 +19,9 @@ import { InspectorPanel } from "./inspector-panel";
 import { FurnitureLibrary } from "./furniture-library";
 import { ProductionCalculator } from "./production-calculator";
 import { jsPDF } from "jspdf";
+// Base64 representation of Roboto, used to support Polish diacritics in generated PDFs
+import { loadRobotoBase64 } from "../../../fonts/roboto"; // path adjusted to reach src/fonts
+
 import { toast } from "sonner";
 
 type TransformMode = "translate" | "rotate" | "scale";
@@ -98,6 +101,7 @@ const handleAddFurniture = (
     // DODAJ TO: Upewnij się, że pobierasz wartość z katalogu lub ustawiasz startową
     shelfCount: catalogItem.shelfCount ?? 2, 
     requiresSupport: catalogItem.requiresSupport,
+  
   };
 
   const updated = [...furniture, newFurniture];
@@ -178,7 +182,7 @@ const handleAddFurniture = (
   };
 
   // Export PDF
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     toast.info("Generowanie dokumentacji technicznej...");
 
     try {
@@ -189,6 +193,12 @@ const handleAddFurniture = (
         unit: "mm",
         format: "a4",
       });
+
+      // register Roboto font so that polish letters like ąęćńłóśżźć are rendered correctly
+      const robotoBase64 = await loadRobotoBase64();
+      pdf.addFileToVFS("Roboto-Regular.ttf", robotoBase64);
+      pdf.addFont("Roboto-Regular.ttf", "Roboto", "normal");
+      pdf.setFont("Roboto");
 
       // Title page
       pdf.setFontSize(24);

@@ -10,11 +10,21 @@ export type FurnitureCategory =
   | "Słupek"
   | "Wyspa";
 
+  export interface TextureMaps {
+  baseColor: string;   // Główny plik mapy (albedo)
+  frontColor?: string;       // <--- DODAJ TĘ LINIJKĘ
+  normal?: string;    // Mapa nierówności (daje efekt głębi słoja drewna)
+  roughness?: string; // Mapa chropowatości (mat vs połysk)
+  ambientOcclusion?: string; // Cienie w zakamarkach
+  repeat?: [number, number]; // Skalowanie tekstury (np. [2, 2])
+}
+
 export interface Material {
   type: MaterialType;
   pricePerM2: number; // Price per square meter
   thickness: number; // in mm
   color: string; // Hex color for 3D visualization
+  textures?: TextureMaps; // Optional texture maps for 3D rendering
 }
 
 export interface Hardware {
@@ -27,6 +37,7 @@ export interface Furniture3D {
   id: string;
   name: string;
   category: FurnitureCategory;
+ 
 
   // 3D Transform (in meters for Three.js)
   position: [number, number, number];
@@ -108,7 +119,15 @@ export const FURNITURE_CATALOG = {
         pricePerM2: 85,
         thickness: 18,
         color: "#8B6F47",
+      // W pliku z katalogiem:
+textures: {
+  frontColor: "/textures/Wood094_1K-JPG_Color.jpg",
+  baseColor: "/textures/Wood094_1K-JPG_Color.jpg",
+  normal: "/textures/Wood094_1K-JPG_NormalDX.jpg",
+  roughness: "/textures/Wood094_1K-JPG_Roughness.jpg",
+},
       },
+      
       frontType: "Gładki" as FrontType,
       hardware: [
         { name: "Zawiasy", quantity: 4, pricePerUnit: 8 },

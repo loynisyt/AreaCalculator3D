@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import {
   OrbitControls,
@@ -7,9 +7,12 @@ import {
   PerspectiveCamera,
   Environment,
   Html,
+  useTexture
 } from "@react-three/drei";
 import { Furniture3D, Room3D, Wall } from "./types";
 import * as THREE from "three";
+// Import typu Room zostawiam, jeśli używasz go gdzieś indziej, 
+// choć w tym pliku używasz Room3D z "./types"
 import { Room } from '../calculator/types';
 
 interface ViewportProps {
@@ -32,7 +35,7 @@ interface ViewportProps {
 const SNAP_DISTANCE = 0.05; // 5cm in meters
 const WALL_SNAP_DISTANCE = 0.1; // 10cm
 
-function FurnitureMesh({
+function FurnitureContent({
   furniture,
   isSelected,
   hasCollision,
@@ -62,28 +65,61 @@ function FurnitureMesh({
   const meshRef = useRef<THREE.Mesh>(null);
   const transformRef = useRef<any>(null);
 
-// Convert mm to meters for Three.js
+  // Convert mm to meters for Three.js
   const width = (furniture.dimensions.width / 1000) * furniture.scale[0];
   const height = (furniture.dimensions.height / 1000) * furniture.scale[1];
   const depth = (furniture.dimensions.depth / 1000) * furniture.scale[2];
 
+  // --- ŁADOWANIE TEKSTUR ---
+  // Uwaga: fallback to np. szara textura w przypadku braku pliku. 
+  // Upewnij się, że masz jakiś plik domyślny lub obsłuż brak ścieżki w inny sposób.
+ const textures = useTexture({
+  map: furniture.material.textures?.baseColor || "/textures/Wood094_1K-JPG_Color.jpg",
+  frontMap: furniture.material.textures?.frontColor || furniture.material.textures?.baseColor || "/textures/Wood094_1K-JPG_Color.jpg",
+  normalMap: furniture.material.textures?.normal || "/textures/Wood094_1K-JPG_NormalDX.jpg",
+  roughnessMap: furniture.material.textures?.roughness || "/textures/Wood094_1K-JPG_Roughness.jpg",
+});
+
+  // Ustawienie powtarzalności tekstury, aby uniknąć rozciągania (UV Mapping)
+  useEffect(() => {
+    [textures.map, textures.frontMap].forEach((t) => {
+      if (t) {
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        // Powtarzaj teksturę np. co 50cm. Dopasuj te wartości do skali swojej tekstury.
+        t.repeat.set(width / 0.5, height / 0.5);
+      }
+    });
+  }, [textures, width, height]);
+
   // --- NOWY KOD: Funkcja blokująca na ścianach i podłodze ---
+ // --- ZAKTUALIZOWANY KOD: Funkcja blokująca na ścianach z uwzględnieniem obrotu ---
   const applyClamping = (position: THREE.Vector3): THREE.Vector3 => {
-    const minX = -(room.width / 2) + (width / 2);
-    const maxX = (room.width / 2) - (width / 2);
+    // 1. Pobieramy kąt obrotu na osi Y (w radianach)
+    const rotY = furniture.rotation[1];
     
-    const minY = height / 2; // Zablokowanie przenikania przez podłogę
-    const maxY = room.height - (height / 2); // Zablokowanie wychodzenia przez sufit
+    // 2. Obliczamy efektywne wymiary pudełka brzegowego (Bounding Box)
+    const cos = Math.abs(Math.cos(rotY));
+    const sin = Math.abs(Math.sin(rotY));
     
-    const minZ = -(room.depth / 2) + (depth / 2);
-    const maxZ = (room.depth / 2) - (depth / 2);
+    const boundingWidth = width * cos + depth * sin;
+    const boundingDepth = depth * cos + width * sin;
+
+    // 3. Używamy zaktualizowanych wymiarów do blokowania
+    const minX = -(room.width / 2) + (boundingWidth / 2);
+    const maxX = (room.width / 2) - (boundingWidth / 2);
+    
+    const minY = height / 2; 
+    const maxY = room.height - (height / 2); 
+    
+    const minZ = -(room.depth / 2) + (boundingDepth / 2);
+    const maxZ = (room.depth / 2) - (boundingDepth / 2);
 
     return new THREE.Vector3(
       Math.max(minX, Math.min(maxX, position.x)),
       Math.max(minY, Math.min(maxY, position.y)),
       Math.max(minZ, Math.min(maxZ, position.z))
     );
-  };  
+  }; 
 
   // Intelligent snapping logic
   const applySnapping = (
@@ -157,8 +193,7 @@ function FurnitureMesh({
     // Snap to walls
     for (const wall of walls) {
       const wallPos = new THREE.Vector3(...wall.position);
-      const wallHalfLength = wall.length / 2;
-
+      
       // Back wall (assuming walls are at room boundaries)
       if (
         Math.abs(snappedPos.z + halfDepth - wallPos.z) < WALL_SNAP_DISTANCE &&
@@ -193,13 +228,32 @@ function FurnitureMesh({
         receiveShadow
       >
         <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial
+        
+        {/* --- MAPOWANIE MATERIAŁÓW (Boki osobno, Front osobno) --- */}
+        {/* Kolejność: [Prawy, Lewy, Góra, Dół, FRONT, Tył] */}
+        
+        {/* Bok Prawy (0) */}
+        <meshStandardMaterial attach="material-0" map={textures.map} color={furniture.material.color} />
+        {/* Bok Lewy (1) */}
+        <meshStandardMaterial attach="material-1" map={textures.map} color={furniture.material.color} />
+        {/* Góra (2) */}
+        <meshStandardMaterial attach="material-2" map={textures.map} color={furniture.material.color} />
+        {/* Dół (3) */}
+        <meshStandardMaterial attach="material-3" map={textures.map} color={furniture.material.color} />
+        
+        {/* FRONT (4) */}
+        <meshStandardMaterial 
+          attach="material-4" 
+          map={textures.frontMap}
           color={hasCollision ? "#ff4444" : furniture.material.color}
           metalness={0.2}
           roughness={0.8}
           emissive={isSelected ? "#3498db" : hasCollision ? "#ff0000" : "#000000"}
           emissiveIntensity={isSelected ? 0.2 : hasCollision ? 0.3 : 0}
         />
+
+        {/* Tył (5) */}
+        <meshStandardMaterial attach="material-5" map={textures.map} color={furniture.material.color} />
 
         {/* Edge highlighting */}
         <lineSegments>
@@ -264,6 +318,24 @@ function FurnitureMesh({
         />
       )}
     </group>
+  );
+}
+
+function FurnitureMesh(props: any) {
+  return (
+    <Suspense fallback={
+      // Prosty fallback - renderuje bryłę o kolorze materiału bez tekstury w trakcie ładowania
+      <mesh position={props.furniture.position} scale={props.furniture.scale}>
+         <boxGeometry args={[
+           props.furniture.dimensions.width / 1000, 
+           props.furniture.dimensions.height / 1000, 
+           props.furniture.dimensions.depth / 1000
+          ]} />
+         <meshStandardMaterial color={props.furniture.material.color || "#cccccc"} />
+      </mesh>
+    }>
+      <FurnitureContent {...props} />
+    </Suspense>
   );
 }
 
@@ -422,7 +494,7 @@ function Scene({
           isSelected={item.id === selectedId}
           hasCollision={checkCollision(item.id)}
           onSelect={() => onSelectFurniture(item.id)}
-          onTransform={(position, rotation, scale) =>
+          onTransform={(position: [number, number, number], rotation: [number, number, number], scale: [number, number, number]) =>
             onTransformFurniture(item.id, position, rotation, scale)
           }
           

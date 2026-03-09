@@ -14,6 +14,7 @@ import { PropertiesPanel } from "./properties-panel";
 import { BottomBar } from "./bottom-bar";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import { loadRobotoBase64 } from "../../../fonts/roboto"; // dynamic loader returns a base64 string
 
 export function Calculator3D() {
   const [furniture, setFurniture] = useState<Furniture[]>([]);
@@ -130,6 +131,8 @@ export function Calculator3D() {
     return furniture.reduce((sum, f) => sum + f.price, 0);
   };
 
+// Zwróć uwagę na ten nowy import na górze pliku (zaraz go stworzymy!)
+
   const handleExportPDF = async () => {
     if (!canvasContainerRef.current) return;
 
@@ -146,11 +149,21 @@ export function Calculator3D() {
         format: [canvas.width, canvas.height],
       });
 
+      // --- NOWY KOD: Dodawanie polskiej czcionki ---
+      // pobieramy TTF jako base64 i rejestrujemy w VFS
+      const robotoBase64 = await loadRobotoBase64();
+      pdf.addFileToVFS("Roboto-Regular.ttf", robotoBase64);
+      pdf.addFont("Roboto-Regular.ttf", "Roboto", "normal");
+      pdf.setFont("Roboto");
+      // ---------------------------------------------
+
       pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
       
       // Add summary page
       pdf.addPage();
       pdf.setFontSize(20);
+      
+      // Od teraz pdf.text() będzie używać Roboto, więc polskie znaki zadziałają!
       pdf.text("Podsumowanie projektu", 40, 40);
       
       pdf.setFontSize(14);
