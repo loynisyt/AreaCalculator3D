@@ -117,7 +117,13 @@ export class ProductionCalculator {
       // Kalkulacja ceny
       const kosztMaterialu = powierzchnia * item.material.pricePerM2;
       const kosztOkuc = item.hardware.reduce(
-        (suma, okucie) => suma + okucie.quantity * okucie.pricePerUnit,
+        (suma, okucie) => {
+          let qty = okucie.quantity;
+          if (item.guides && (okucie.name === "Uchwyt" || okucie.name === "Prowadnice")) {
+            qty = item.guides;
+          }
+          return suma + qty * okucie.pricePerUnit;
+        },
         0
       );
       
@@ -127,11 +133,16 @@ export class ProductionCalculator {
       // Agregacja okuć
       item.hardware.forEach((okucie) => {
         const klucz = okucie.name;
+        let qty = okucie.quantity;
+        if (item.guides && (okucie.name === "Uchwyt" || okucie.name === "Prowadnice")) {
+          qty = item.guides;
+        }
+
         if (zbiorczeOkucia.has(klucz)) {
           const istniejace = zbiorczeOkucia.get(klucz)!;
-          istniejace.quantity += okucie.quantity;
+          istniejace.quantity += qty;
         } else {
-          zbiorczeOkucia.set(klucz, { ...okucie });
+          zbiorczeOkucia.set(klucz, { ...okucie, quantity: qty });
         }
       });
 

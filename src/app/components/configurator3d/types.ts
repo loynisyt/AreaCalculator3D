@@ -44,6 +44,7 @@ export interface Furniture3D {
   rotation: [number, number, number]; // Euler angles in radians
   scale: [number, number, number];
   shelfCount: number;
+  guides?: number;
 
   // Dimensions (in mm - production standard)
   dimensions: {
@@ -111,7 +112,7 @@ export interface PanelCut {
 export const FURNITURE_CATALOG = {
   "Szafki dolne": [
     {
-      name: "Szafka D60",
+      name: "Szafka Podstawowa",
       dimensions: { width: 600, height: 850, depth: 600 },
       basePrice: 450,
       material: {
@@ -119,15 +120,13 @@ export const FURNITURE_CATALOG = {
         pricePerM2: 85,
         thickness: 18,
         color: "#8B6F47",
-      // W pliku z katalogiem:
-textures: {
-  frontColor: "/textures/Wood094_1K-JPG_Color.jpg",
-  baseColor: "/textures/Wood094_1K-JPG_Color.jpg",
-  normal: "/textures/Wood094_1K-JPG_NormalDX.jpg",
-  roughness: "/textures/Wood094_1K-JPG_Roughness.jpg",
-},
+        textures: {
+          frontColor: "/textures/Wood094_1K-JPG_Color.jpg",
+          baseColor: "/textures/Wood094_1K-JPG_Color.jpg",
+          normal: "/textures/Wood094_1K-JPG_NormalDX.jpg",
+          roughness: "/textures/Wood094_1K-JPG_Roughness.jpg",
+        },
       },
-      
       frontType: "Gładki" as FrontType,
       hardware: [
         { name: "Zawiasy", quantity: 4, pricePerUnit: 8 },
@@ -145,7 +144,7 @@ textures: {
       requiresSupport: true,
     },
     {
-      name: "Szafka D80",
+      name: "Szafka z szufladami",
       dimensions: { width: 800, height: 850, depth: 600 },
       basePrice: 520,
       material: {
@@ -153,12 +152,18 @@ textures: {
         pricePerM2: 85,
         thickness: 18,
         color: "#A0826D",
+        textures: {
+          frontColor: "/textures/Wood094_1K-JPG_Color.jpg",
+          baseColor: "/textures/Wood094_1K-JPG_Color.jpg",
+          normal: "/textures/Wood094_1K-JPG_NormalDX.jpg",
+          roughness: "/textures/Wood094_1K-JPG_Roughness.jpg",
+        },
       },
       frontType: "Gładki" as FrontType,
       hardware: [
         { name: "Zawiasy", quantity: 4, pricePerUnit: 8 },
         { name: "Nóżki", quantity: 4, pricePerUnit: 12 },
-        { name: "Uchwyt", quantity: 1, pricePerUnit: 25 },
+        { name: "Uchwyt", quantity: 3, pricePerUnit: 25 }, // Zależne od guides, domyślnie tak jak guides
       ],
       snapPoints: {
         left: true,
@@ -168,7 +173,7 @@ textures: {
         back: true,
       },
       isAppliance: false,
-      shelfCount: 2,
+      guides: 3, // custom property
       requiresSupport: true,
     },
     {
@@ -180,12 +185,18 @@ textures: {
         pricePerM2: 85,
         thickness: 18,
         color: "#8B6F47",
+        textures: {
+          frontColor: "/textures/Wood094_1K-JPG_Color.jpg",
+          baseColor: "/textures/Wood094_1K-JPG_Color.jpg",
+          normal: "/textures/Wood094_1K-JPG_NormalDX.jpg",
+          roughness: "/textures/Wood094_1K-JPG_Roughness.jpg",
+        },
       },
       frontType: "Gładki" as FrontType,
       hardware: [
-        { name: "Zawiasy", quantity: 6, pricePerUnit: 8 },
+        { name: "Zawiasy", quantity: 3, pricePerUnit: 8 },
         { name: "Nóżki", quantity: 6, pricePerUnit: 12 },
-        { name: "Karuzela narożna", quantity: 1, pricePerUnit: 180 },
+        { name: "Karuzela narożna", quantity: 2, pricePerUnit: 180 },
       ],
       snapPoints: {
         left: true,
@@ -195,14 +206,37 @@ textures: {
         back: true,
       },
       isAppliance: false,
-      shelfCount: 2,
+      shelfCount: 1,
+
+      requiresSupport: true,
+    },
+    {
+      name: "Zmywarka",
+      dimensions: { width: 600, height: 820, depth: 550 },
+      basePrice: 2100,
+      material: {
+        type: "MDF" as MaterialType,
+        pricePerM2: 0,
+        thickness: 0,
+        color: "#2C3E50",
+      },
+      frontType: "Gładki" as FrontType,
+      hardware: [],
+      snapPoints: {
+        left: false,
+        right: false,
+        top: false,
+        bottom: false,
+        back: true,
+      },
+      isAppliance: true,
 
       requiresSupport: true,
     },
   ],
   "Szafki górne": [
     {
-      name: "Szafka G60",
+      name: "Szafka Podstawowa",
       dimensions: { width: 600, height: 700, depth: 350 },
       basePrice: 380,
       material: {
@@ -210,12 +244,17 @@ textures: {
         pricePerM2: 85,
         thickness: 18,
         color: "#B8956A",
+        textures: {
+          frontColor: "/textures/Wood094_1K-JPG_Color.jpg",
+          baseColor: "/textures/Wood094_1K-JPG_Color.jpg",
+          normal: "/textures/Wood094_1K-JPG_NormalDX.jpg",
+          roughness: "/textures/Wood094_1K-JPG_Roughness.jpg",
+        },
       },
       frontType: "Gładki" as FrontType,
       hardware: [
         { name: "Zawiasy", quantity: 4, pricePerUnit: 8 },
         { name: "Uchwyt", quantity: 1, pricePerUnit: 25 },
-        { name: "Szyna montażowa", quantity: 1, pricePerUnit: 35 },
       ],
       snapPoints: {
         left: true,
@@ -225,25 +264,32 @@ textures: {
         back: true,
       },
       isAppliance: false,
-            shelfCount: 2,
+      shelfCount: 2,
 
       requiresSupport: false,
-    },
+    }
+  ],
+  Nadstawki: [
     {
-      name: "Szafka G80",
-      dimensions: { width: 800, height: 700, depth: 350 },
-      basePrice: 450,
+      name: "Nadstawka Podstawowa",
+      dimensions: { width: 600, height: 600, depth: 200 },
+      basePrice: 300,
       material: {
         type: "Płyta melamina" as MaterialType,
         pricePerM2: 85,
         thickness: 18,
-        color: "#B8956A",
+        color: "#F8956A",
+        textures: {
+          frontColor: "/textures/Wood094_1K-JPG_Color.jpg",
+          baseColor: "/textures/Wood094_1K-JPG_Color.jpg",
+          normal: "/textures/Wood094_1K-JPG_NormalDX.jpg",
+          roughness: "/textures/Wood094_1K-JPG_Roughness.jpg",
+        },
       },
       frontType: "Gładki" as FrontType,
       hardware: [
-        { name: "Zawiasy", quantity: 4, pricePerUnit: 8 },
-        { name: "Uchwyt", quantity: 1, pricePerUnit: 25 },
-        { name: "Szyna montażowa", quantity: 1, pricePerUnit: 35 },
+        { name: "Siłowniki", quantity: 2, pricePerUnit: 40 },
+        { name: "Zawiasy", quantity: 2, pricePerUnit: 8 }, // dodano zawiasy
       ],
       snapPoints: {
         left: true,
@@ -253,23 +299,30 @@ textures: {
         back: true,
       },
       isAppliance: false,
+      shelfCount: 1,
+
       requiresSupport: false,
-    },
+    }
   ],
   Blaty: [
     {
-      name: "Blat 240cm",
-      dimensions: { width: 2400, height: 40, depth: 600 },
-      basePrice: 580,
+      name: "Blat 60cm",
+      dimensions: { width: 600, height: 40, depth: 600 },
+      basePrice: 150,
       material: {
         type: "Laminat" as MaterialType,
         pricePerM2: 120,
         thickness: 40,
         color: "#2C3E50",
+        textures: {
+          baseColor: "/textures/Marble01_1K-JPG_Color.jpg",
+          normal: "/textures/Marble01_1K-JPG_NormalDX.jpg",
+          roughness: "/textures/Marble01_1K-JPG_Roughness.jpg",
+          repeat: [1, 1] as [number, number],
+        },
       },
       frontType: "Gładki" as FrontType,
       hardware: [
-        { name: "Złącze blatu", quantity: 2, pricePerUnit: 15 },
         { name: "Klej montażowy", quantity: 1, pricePerUnit: 45 },
       ],
       snapPoints: {
@@ -280,7 +333,37 @@ textures: {
         back: false,
       },
       isAppliance: false,
-            shelfCount: 2,
+
+      requiresSupport: false,
+    },
+    {
+      name: "Blat 120cm",
+      dimensions: { width: 1200, height: 40, depth: 600 },
+      basePrice: 290,
+      material: {
+        type: "Laminat" as MaterialType,
+        pricePerM2: 120,
+        thickness: 40,
+        color: "#2C3E50",
+        textures: {
+          baseColor: "/textures/Marble01_1K-JPG_Color.jpg",
+          normal: "/textures/Marble01_1K-JPG_NormalDX.jpg",
+          roughness: "/textures/Marble01_1K-JPG_Roughness.jpg",
+          repeat: [2, 1] as [number, number], // Powtarzanie dłuższego blatu
+        },
+      },
+      frontType: "Gładki" as FrontType,
+      hardware: [
+        { name: "Klej montażowy", quantity: 1, pricePerUnit: 45 },
+      ],
+      snapPoints: {
+        left: true,
+        right: true,
+        top: false,
+        bottom: true,
+        back: false,
+      },
+      isAppliance: false,
 
       requiresSupport: false,
     },
@@ -330,31 +413,31 @@ textures: {
         back: true,
       },
       isAppliance: true,
-            shelfCount: 0,
+      shelfCount: 0,
       requiresSupport: false,
     },
     {
-      name: "Zmywarka",
-      dimensions: { width: 600, height: 820, depth: 550 },
-      basePrice: 2100,
+      name: "Mikrofala",
+      dimensions: { width: 600, height: 300, depth: 500 },
+      basePrice: 850,
       material: {
         type: "MDF" as MaterialType,
         pricePerM2: 0,
         thickness: 0,
-        color: "#2C3E50",
+        color: "#95A5A6",
       },
-      frontType: "Gładki" as FrontType,
+      frontType: "Szkło" as FrontType,
       hardware: [],
       snapPoints: {
         left: false,
         right: false,
         top: false,
-        bottom: false,
+        bottom: true,
         back: true,
       },
       isAppliance: true,
-
-      requiresSupport: true,
+      shelfCount: 0,
+      requiresSupport: false,
     },
   ],
 };

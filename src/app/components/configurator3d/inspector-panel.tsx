@@ -268,6 +268,23 @@ export function InspectorPanel({
         className="w-20 px-3 py-1 bg-gray-900 border border-gray-600 rounded text-white font-mono focus:border-blue-500 outline-none"
       />
     </div>
+    {selectedFurniture.guides !== undefined && (
+      <div className="flex items-center gap-4 mt-2">
+        <span className="text-sm text-gray-300">Liczba szuflad (prowadnic):</span>
+        <input
+          type="number"
+          min="1"
+          max="8"
+          value={selectedFurniture.guides}
+          onChange={(e) =>
+            onUpdateFurniture(selectedFurniture.id, {
+              guides: parseInt(e.target.value) || 1,
+            })
+          }
+          className="w-20 px-3 py-1 bg-gray-900 border border-gray-600 rounded text-white font-mono focus:border-blue-500 outline-none"
+        />
+      </div>
+    )}
     <p className="text-[10px] text-gray-500 mt-2 italic">
       * Szerokość półek zostanie automatycznie pomniejszona o {selectedFurniture.material.thickness * 2}mm (grubość boków).
     </p>

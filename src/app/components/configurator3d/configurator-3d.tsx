@@ -19,97 +19,66 @@ import { InspectorPanel } from "./inspector-panel";
 import { FurnitureLibrary } from "./furniture-library";
 import { ProductionCalculator } from "./production-calculator";
 import { jsPDF } from "jspdf";
-// Base64 representation of Roboto, used to support Polish diacritics in generated PDFs
-import { loadRobotoBase64 } from "../../../fonts/roboto"; // path adjusted to reach src/fonts
-
+import { loadRobotoBase64 } from "../../../fonts/roboto";
 import { toast } from "sonner";
+import { useProjectStore } from "../../store/project-store";
+import { getWallsBoundingBoxCenter } from "../../utils/geometry-2d";
 
 type TransformMode = "translate" | "rotate" | "scale";
 
 export function Configurator3D() {
-  const [furniture, setFurniture] = useState<Furniture3D[]>([]);
+  const {
+    furniture,
+    walls,
+    room,
+    historyIndex,
+    history,
+    addFurniture,
+    updateFurniture,
+    removeFurniture,
+    setFurniture,
+    undo,
+    redo,
+    getProjectData,
+  } = useProjectStore();
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [transformMode, setTransformMode] = useState<TransformMode>("translate");
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [viewMode, setViewMode] = useState<"3d" | "top" | "front">("3d");
 
-  const [room] = useState<Room3D>({
-    width: 6,
-    height: 3,
-    depth: 5,
-  });
-
-  const [walls] = useState<Wall[]>([
-    {
-      id: "wall-back",
-      position: [0, 1.5, -2.5],
-      rotation: 0,
-      length: 6,
-      height: 3,
-      thickness: 0.0,
-    },
-    {
-      id: "wall-left",
-      position: [-3, 1.5, 0],
-      rotation: Math.PI / 2,
-      length: 5,
-      height: 3,
-      thickness: 0.0,
-    }
-   
-  ]);
-
-  const [history, setHistory] = useState<Furniture3D[][]>([[]]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-
   const selectedFurniture = furniture.find((f) => f.id === selectedId) || null;
-
-  // Add to history
-  const addToHistory = useCallback(
-    (newFurniture: Furniture3D[]) => {
-      setHistory((prev) => {
-        const newHistory = prev.slice(0, historyIndex + 1);
-        newHistory.push(JSON.parse(JSON.stringify(newFurniture)));
-        return newHistory;
-      });
-      setHistoryIndex((prev) => prev + 1);
-    },
-    [historyIndex]
-  );
+  const canvasCenterPx = getWallsBoundingBoxCenter(walls);
 
   // Add furniture from catalog
- // Wewnątrz Configurator3D -> handleAddFurniture
-const handleAddFurniture = (
-  catalogItem: (typeof FURNITURE_CATALOG)[keyof typeof FURNITURE_CATALOG][number],
-  category: string
-) => {
-  const newFurniture: Furniture3D = {
-    id: `furniture-${Date.now()}`,
-    name: catalogItem.name,
-    category: category as Furniture3D["category"],
-    position: [0, (catalogItem.dimensions.height / 2000), 0],
-    rotation: [0, 0, 0],
-    scale: [1, 1, 1],
-    dimensions: catalogItem.dimensions,
-    material: catalogItem.material,
-    frontType: catalogItem.frontType,
-    basePrice: catalogItem.basePrice,
-    hardware: catalogItem.hardware,
-    snapPoints: catalogItem.snapPoints,
-    isAppliance: catalogItem.isAppliance,
-    // DODAJ TO: Upewnij się, że pobierasz wartość z katalogu lub ustawiasz startową
-    shelfCount: catalogItem.shelfCount ?? 2, 
-    requiresSupport: catalogItem.requiresSupport,
-  
-  };
+  const handleAddFurniture = (
+    catalogItem: (typeof FURNITURE_CATALOG)[keyof typeof FURNITURE_CATALOG][number],
+    category: string
+  ) => {
+    const newFurniture: Furniture3D = {
+      id: `furniture-${Date.now()}`,
+      name: catalogItem.name,
+      category: category as Furniture3D["category"],
+      position: [0, (catalogItem.dimensions.height / 2000), 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      dimensions: catalogItem.dimensions,
+      material: catalogItem.material,
+      frontType: catalogItem.frontType,
+      basePrice: catalogItem.basePrice,
+      hardware: catalogItem.hardware,
+      snapPoints: catalogItem.snapPoints,
+      isAppliance: catalogItem.isAppliance,
+      shelfCount: (catalogItem as any).shelfCount ?? 2, 
+      guides: (catalogItem as any).guides,
+      requiresSupport: catalogItem.requiresSupport,
+    };
 
-  const updated = [...furniture, newFurniture];
-  setFurniture(updated);
-  setSelectedId(newFurniture.id);
-  addToHistory(updated);
-  toast.success(`Dodano ${catalogItem.name}`);
-};
+    addFurniture(newFurniture);
+    setSelectedId(newFurniture.id);
+    toast.success(`Dodano ${catalogItem.name}`);
+  };
 
   // Transform furniture
   const handleTransformFurniture = (
@@ -118,10 +87,8 @@ const handleAddFurniture = (
     rotation: [number, number, number],
     scale: [number, number, number]
   ) => {
-    const updated = furniture.map((f) =>
-      f.id === id ? { ...f, position, rotation, scale } : f
-    );
-    setFurniture(updated);
+    // Only update local array to prevent lag, we can commit to store on mouse up ideally, but this works for now.
+    updateFurniture(id, { position, rotation, scale });
   };
 
   // Update furniture
@@ -129,17 +96,13 @@ const handleAddFurniture = (
     id: string,
     updates: Partial<Furniture3D>
   ) => {
-    const updated = furniture.map((f) => (f.id === id ? { ...f, ...updates } : f));
-    setFurniture(updated);
-    addToHistory(updated);
+    updateFurniture(id, updates);
   };
 
   // Delete furniture
   const handleDeleteFurniture = (id: string) => {
-    const updated = furniture.filter((f) => f.id !== id);
-    setFurniture(updated);
+    removeFurniture(id);
     setSelectedId(null);
-    addToHistory(updated);
     toast.info("Usunięto element");
   };
 
@@ -156,27 +119,23 @@ const handleAddFurniture = (
           original.position[2],
         ],
       };
-      const updated = [...furniture, duplicate];
-      setFurniture(updated);
+      addFurniture(duplicate);
       setSelectedId(duplicate.id);
-      addToHistory(updated);
       toast.success("Zduplikowano element");
     }
   };
 
-  // Undo/Redo
+  // Undo/Redo - wrapped store methods for toasts
   const handleUndo = () => {
     if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setFurniture(JSON.parse(JSON.stringify(history[historyIndex - 1])));
+      undo();
       toast.info("Cofnięto");
     }
   };
 
   const handleRedo = () => {
     if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setFurniture(JSON.parse(JSON.stringify(history[historyIndex + 1])));
+      redo();
       toast.info("Ponowiono");
     }
   };
@@ -289,12 +248,7 @@ const handleAddFurniture = (
 
   // Save project
   const handleSaveProject = () => {
-    const projectData = {
-      furniture,
-      room,
-      walls,
-      timestamp: new Date().toISOString(),
-    };
+    const projectData = getProjectData();
 
     const dataStr = JSON.stringify(projectData, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
@@ -505,6 +459,7 @@ const handleAddFurniture = (
             furniture={furniture}
             walls={walls}
             room={room}
+            canvasCenterPx={canvasCenterPx}
             selectedId={selectedId}
             transformMode={transformMode}
             snapEnabled={snapEnabled}

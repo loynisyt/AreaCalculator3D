@@ -1,5 +1,5 @@
-import { useRef, useState, useEffect, Suspense } from "react";
-import { Canvas } from "@react-three/fiber";
+import { useRef, useState, useEffect, Suspense, useMemo } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
   Grid,
@@ -7,9 +7,13 @@ import {
   PerspectiveCamera,
   Environment,
   Html,
-  useTexture
+  useTexture,
+  Preload
 } from "@react-three/drei";
-import { Furniture3D, Room3D, Wall } from "./types";
+import { Furniture3D, Room3D, FURNITURE_CATALOG } from "./types";
+import { Wall2D, useProjectStore } from "../../store/project-store";
+import { calculate3DWallProperties, getWallsBoundingBoxCenter } from "../../utils/geometry-2d";
+import { LoadingScreen } from "./loading-screen";
 import * as THREE from "three";
 // Import typu Room zostawiam, jeśli używasz go gdzieś indziej, 
 // choć w tym pliku używasz Room3D z "./types"
@@ -17,8 +21,9 @@ import { Room } from '../calculator/types';
 
 interface ViewportProps {
   furniture: Furniture3D[];
-  walls: Wall[];
+  walls: Wall2D[];
   room: Room3D;
+  canvasCenterPx: [number, number];
   selectedId: string | null;
   transformMode: "translate" | "rotate" | "scale";
   snapEnabled: boolean;
@@ -46,6 +51,7 @@ function FurnitureContent({
   allFurniture,
   walls,
   room,
+  canvasCenterPx,
 }: {
   furniture: Furniture3D;
   isSelected: boolean;
@@ -59,8 +65,9 @@ function FurnitureContent({
   transformMode: "translate" | "rotate" | "scale";
   snapEnabled: boolean;
   allFurniture: Furniture3D[];
-  walls: Wall[];
+  walls: Wall2D[];
   room: Room3D;
+  canvasCenterPx: [number, number];
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const transformRef = useRef<any>(null);
@@ -125,15 +132,17 @@ function FurnitureContent({
   const applySnapping = (
     position: THREE.Vector3,
     furnitureId: string
-  ): THREE.Vector3 => {
-    if (!snapEnabled) return position;
+  ): { position: THREE.Vector3; rotationY?: number } => {
+    if (!snapEnabled) return { position };
 
     const snappedPos = position.clone();
+    let snappedRotY = furniture.rotation[1];
     const currentFurniture = allFurniture.find((f) => f.id === furnitureId);
-    if (!currentFurniture) return position;
+    if (!currentFurniture) return { position };
 
     const halfWidth = width / 2;
     const halfDepth = depth / 2;
+    let snappedToOther = false;
 
     // Snap to other furniture (side-by-side)
     for (const other of allFurniture) {
@@ -156,6 +165,7 @@ function FurnitureContent({
         ) {
           snappedPos.x = otherPos.x - otherHalfWidth - halfWidth;
           snappedPos.z = otherPos.z;
+          snappedToOther = true;
         }
 
         // Snap left side to right side of other
@@ -166,6 +176,7 @@ function FurnitureContent({
         ) {
           snappedPos.x = otherPos.x + otherHalfWidth + halfWidth;
           snappedPos.z = otherPos.z;
+          snappedToOther = true;
         }
 
         // Snap back to front of other
@@ -176,6 +187,7 @@ function FurnitureContent({
         ) {
           snappedPos.z = otherPos.z - otherHalfDepth - halfDepth;
           snappedPos.x = otherPos.x;
+          snappedToOther = true;
         }
 
         // Snap front to back of other
@@ -186,24 +198,61 @@ function FurnitureContent({
         ) {
           snappedPos.z = otherPos.z + otherHalfDepth + halfDepth;
           snappedPos.x = otherPos.x;
+          snappedToOther = true;
         }
       }
     }
 
     // Snap to walls
-    for (const wall of walls) {
-      const wallPos = new THREE.Vector3(...wall.position);
-      
-      // Back wall (assuming walls are at room boundaries)
-      if (
-        Math.abs(snappedPos.z + halfDepth - wallPos.z) < WALL_SNAP_DISTANCE &&
-        currentFurniture.snapPoints.back
-      ) {
-        snappedPos.z = wallPos.z - halfDepth - 0.01; // Small offset
+    if (!snappedToOther && currentFurniture.snapPoints.back) {
+      // Much more robust wall locking logic 
+      let minWallDist = WALL_SNAP_DISTANCE * 4; // allow generous grab distance
+      for (const wall of walls) {
+        if (!wall.startNode || !wall.endNode) continue;
+        
+        const wallProps = calculate3DWallProperties(wall.startNode, wall.endNode, wall.height, wall.thickness, canvasCenterPx);
+        const wallPos = new THREE.Vector3(...wallProps.position);
+        
+        // Math to find distance to wall segment in 3D XZ plane
+        const dx = position.x - wallPos.x;
+        const dz = position.z - wallPos.z;
+        
+        // Rotate point to wall's local space
+        const cos = Math.cos(wallProps.rotation);
+        const sin = Math.sin(wallProps.rotation);
+        
+        const localX = dx * cos - dz * sin;
+        const localZ = dx * sin + dz * cos;
+        
+        // Closest point on wall segment
+        const halfLen = wallProps.length / 2;
+        const clampX = Math.max(-halfLen, Math.min(halfLen, localX));
+        const distToSegmentSq = Math.pow(localX - clampX, 2) + Math.pow(localZ, 2);
+        const distToSegment = Math.sqrt(distToSegmentSq);
+        
+        // If within snap physics distance
+        if (distToSegment < minWallDist) {
+            minWallDist = distToSegment;
+            
+            // We want to snap furniture's back to the wall.
+            // Which side of the wall are we on?
+            const side = localZ >= 0 ? 1 : -1;
+            // 0.1 is wall thickness, added 0.01 for z-fighting
+            const targetLocalZ = side * (halfDepth + 0.01 + 0.1 / 2); 
+            
+            const targetWorldX = wallPos.x + clampX * cos + targetLocalZ * sin;
+            const targetWorldZ = wallPos.z - clampX * sin + targetLocalZ * cos;
+            
+            snappedPos.x = targetWorldX;
+            snappedPos.z = targetWorldZ;
+            
+            // Align rotation to face interior (normal of the wall face we snapped to)
+            snappedRotY = wallProps.rotation + (side === 1 ? 0 : Math.PI);
+        }
       }
     }
 
-    return snappedPos;
+    return { position: snappedPos, rotationY: snappedRotY };
   };
 
   // Attach transform controls when selected
@@ -294,17 +343,22 @@ function FurnitureContent({
               let newPosition = meshRef.current.position.clone();
 
               // Apply snapping
+              let newRotY = meshRef.current.rotation.y;
               if (transformMode === "translate") {
-                newPosition = applySnapping(newPosition, furniture.id);
+                const snapResult = applySnapping(newPosition, furniture.id);
+                newPosition = snapResult.position;
+                if (snapResult.rotationY !== undefined) newRotY = snapResult.rotationY;
+                
                 newPosition = applyClamping(newPosition);
                 meshRef.current.position.copy(newPosition);
+                meshRef.current.rotation.y = newRotY;
               }
 
               onTransform(
                 [newPosition.x, newPosition.y, newPosition.z],
                 [
                   meshRef.current.rotation.x,
-                  meshRef.current.rotation.y,
+                  newRotY,
                   meshRef.current.rotation.z,
                 ],
                 [
@@ -339,27 +393,105 @@ function FurnitureMesh(props: any) {
   );
 }
 
-function WallMesh({ wall }: { wall: Wall }) {
+function WallMesh({ wall, isClosest, canvasCenterPx }: { wall: Wall2D, isClosest: boolean, canvasCenterPx: [number, number] }) {
+  const doors = useProjectStore(state => state.doors);
+  const wallDoors = doors.filter(d => d.wallId === wall.id);
+  
+  // Convert 2D to 3D properties
+  const wallProps = useMemo(() => {
+     return calculate3DWallProperties(wall.startNode, wall.endNode, wall.height, wall.thickness, canvasCenterPx);
+  }, [wall, canvasCenterPx]);
+
+  const height = wall.isSemiWall ? wall.height / 2 : wall.height;
+  const heightM = height / 1000;
+  const thicknessM = 0.1; // 100mm wall thickness
+
+  // Material Opacity Logic
+  // If it's one of the 2 closest walls, we make it transparent to see inside
+  const opacity = isClosest ? 0.1 : 1.0;
+  const transparent = isClosest;
+
+  // We need to cut out doors if they exist
+  // For simplicity without using CSG, we can draw the wall as a combination of smaller boxes if there are doors.
+  // Assuming a single door for now:
+  
+  if (wallDoors.length > 0) {
+     const sortedDoors = [...wallDoors].sort((a,b) => a.distanceFromStart - b.distanceFromStart);
+     let lastXM = 0;
+     const segments = [];
+     
+     sortedDoors.forEach((door, idx) => {
+         const doorStartM = door.distanceFromStart / 1000;
+         const doorWidthM = door.width / 1000;
+         const doorHeightM = door.height / 1000;
+         
+         // Left solid segment before door
+         const leftLen = doorStartM - lastXM;
+         if (leftLen > 0) {
+            const cx = -wallProps.length/2 + lastXM + leftLen/2;
+            segments.push(
+               <mesh key={`solid-${idx}`} position={[cx, 0, 0]} receiveShadow>
+                 <boxGeometry args={[leftLen, heightM, thicknessM]} />
+                 <meshStandardMaterial color="#34495e" transparent={transparent} opacity={opacity} />
+               </mesh>
+            );
+         }
+         
+         // Top segment above door
+         if (heightM > doorHeightM) {
+            const topHeight = heightM - doorHeightM;
+            const tcy = (heightM - doorHeightM)/2 + doorHeightM/2;
+            const tcx = -wallProps.length/2 + doorStartM + doorWidthM/2;
+            segments.push(
+               <mesh key={`top-${idx}`} position={[tcx, tcy, 0]} receiveShadow>
+                 <boxGeometry args={[doorWidthM, topHeight, thicknessM]} />
+                 <meshStandardMaterial color="#34495e" transparent={transparent} opacity={opacity} />
+               </mesh>
+            );
+         }
+         
+         lastXM = doorStartM + doorWidthM;
+     });
+     
+     // Final segment after the last door
+     const finalLen = wallProps.length - lastXM;
+     if (finalLen > 0) {
+        const cx = -wallProps.length/2 + lastXM + finalLen/2;
+        segments.push(
+           <mesh key="final-solid" position={[cx, 0, 0]} receiveShadow>
+             <boxGeometry args={[finalLen, heightM, thicknessM]} />
+             <meshStandardMaterial color="#34495e" transparent={transparent} opacity={opacity} />
+           </mesh>
+        );
+     }
+     
+     return (
+        <group position={wallProps.position} rotation={[0, wallProps.rotation, 0]}>
+           {segments}
+        </group>
+     )
+  }
+
   return (
     <mesh
-      position={wall.position}
-      rotation={[0, wall.rotation, 0]}
+      position={wallProps.position}
+      rotation={[0, wallProps.rotation, 0]}
       receiveShadow
     >
-      <boxGeometry args={[wall.length, wall.height, wall.thickness]} />
+      <boxGeometry args={[wallProps.length, heightM, thicknessM]} />
       <meshStandardMaterial
         color="#34495e"
-        transparent
-        opacity={0.3}
+        transparent={transparent}
+        opacity={opacity}
         side={THREE.DoubleSide}
       />
       <lineSegments>
         <edgesGeometry
           args={[
-            new THREE.BoxGeometry(wall.length, wall.height, wall.thickness),
+            new THREE.BoxGeometry(wallProps.length, heightM, thicknessM),
           ]}
         />
-        <lineBasicMaterial color="#7f8c8d" linewidth={2} />
+        <lineBasicMaterial color="#7f8c8d" linewidth={2} transparent={transparent} opacity={opacity} />
       </lineSegments>
     </mesh>
   );
@@ -374,6 +506,7 @@ function Scene({
   snapEnabled,
   onSelectFurniture,
   onTransformFurniture,
+  canvasCenterPx
 }: ViewportProps) {
   // Collision detection
  const checkCollision = (id: string, testPosition?: THREE.Vector3): boolean => {
@@ -424,6 +557,34 @@ function Scene({
   }
   return false;
 };
+
+  // State to track closest walls
+  const [closestWallIds, setClosestWallIds] = useState<string[]>([]);
+
+  // Calculate Camera Distance for walls to handle transparency
+  useFrame(({ camera }) => {
+     if (walls.length < 3) return; // Only apply if we have a room shape
+     
+     const distances = walls.map(wall => {
+        const props = calculate3DWallProperties(wall.startNode, wall.endNode, wall.height, wall.thickness, canvasCenterPx);
+        const wallPos = new THREE.Vector3(...props.position);
+        return {
+           id: wall.id,
+           distance: camera.position.distanceTo(wallPos)
+        };
+     });
+     
+     // Sort by distance ascending
+     distances.sort((a, b) => a.distance - b.distance);
+     
+     // Take the 2 closest
+     const closest = distances.slice(0, 2).map(d => d.id);
+     
+     // Update state only if changed to prevent re-renders
+     if (closest[0] !== closestWallIds[0] || closest[1] !== closestWallIds[1]) {
+        setClosestWallIds(closest);
+     }
+  });
 
   return (
     <>
@@ -483,7 +644,7 @@ function Scene({
 
       {/* Walls */}
       {walls.map((wall) => (
-        <WallMesh key={wall.id} wall={wall} />
+        <WallMesh key={wall.id} wall={wall} isClosest={closestWallIds.includes(wall.id)} canvasCenterPx={canvasCenterPx} />
       ))}
 
       {/* Furniture */}
@@ -502,7 +663,8 @@ function Scene({
           snapEnabled={snapEnabled}
           allFurniture={furniture}
           walls={walls}
-          room={room} // <--- DODANE
+          room={room} 
+          canvasCenterPx={canvasCenterPx}
         />
       ))}
 
@@ -515,15 +677,51 @@ function Scene({
         <planeGeometry args={[room.width * 3, room.depth * 3]} />
         <meshBasicMaterial visible={false} />
       </mesh>
+      
+      {/* Pre-compile all mounted shapes so no runtime shutter */}
+      <Preload all />
     </>
   );
 }
 
+// Preload standard catalog textures before anything renders
+const preloadCatalogTextures = () => {
+  const uniqueUrls = new Set<string>();
+
+  // Extract URLs safely handling optionals and type mapping
+  Object.values(FURNITURE_CATALOG).forEach((categoryItems: any[]) => {
+    categoryItems.forEach((item: any) => {
+      const textures = item.material?.textures;
+      if (textures) {
+        if (textures.baseColor) uniqueUrls.add(textures.baseColor);
+        if (textures.frontColor) uniqueUrls.add(textures.frontColor);
+        if (textures.normal) uniqueUrls.add(textures.normal);
+        if (textures.roughness) uniqueUrls.add(textures.roughness);
+        if (textures.ambientOcclusion) uniqueUrls.add(textures.ambientOcclusion);
+      }
+    });
+  });
+
+  // Unique list ensures we don't spam threejs with preload attempts
+  uniqueUrls.forEach((url) => {
+    if (url) {
+      useTexture.preload(url);
+    }
+  });
+};
+
+// Run preload once when module starts
+preloadCatalogTextures();
+
 export function Viewport3D(props: ViewportProps) {
   return (
     <div className="relative w-full h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <LoadingScreen />
+      
       <Canvas shadows dpr={[1, 2]} gl={{ antialias: true }}>
-        <Scene {...props} />
+        <Suspense fallback={null}>
+          <Scene {...props} />
+        </Suspense>
       </Canvas>
 
       {/* Transform mode indicator */}
