@@ -114,7 +114,7 @@ export const FURNITURE_CATALOG = {
     {
       name: "Szafka Podstawowa",
       dimensions: { width: 600, height: 850, depth: 600 },
-      basePrice: 450,
+      basePrice: 200,
       material: {
         type: "Płyta melamina" as MaterialType,
         pricePerM2: 85,
@@ -129,8 +129,8 @@ export const FURNITURE_CATALOG = {
       },
       frontType: "Gładki" as FrontType,
       hardware: [
-        { name: "Zawiasy", quantity: 4, pricePerUnit: 8 },
-        { name: "Nóżki", quantity: 4, pricePerUnit: 12 },
+        { name: "Zawiasy", quantity: 4, pricePerUnit: 15 },
+        { name: "Nóżki", quantity: 4, pricePerUnit: 6 },
         { name: "Uchwyt", quantity: 1, pricePerUnit: 25 },
       ],
       snapPoints: {
@@ -146,7 +146,7 @@ export const FURNITURE_CATALOG = {
     {
       name: "Szafka z szufladami",
       dimensions: { width: 800, height: 850, depth: 600 },
-      basePrice: 520,
+      basePrice: 150,
       material: {
         type: "Płyta melamina" as MaterialType,
         pricePerM2: 85,
@@ -161,8 +161,8 @@ export const FURNITURE_CATALOG = {
       },
       frontType: "Gładki" as FrontType,
       hardware: [
-        { name: "Zawiasy", quantity: 4, pricePerUnit: 8 },
-        { name: "Nóżki", quantity: 4, pricePerUnit: 12 },
+        { name: "Zawiasy", quantity: 4, pricePerUnit: 15 },
+        { name: "Nóżki", quantity: 4, pricePerUnit: 6 },
         { name: "Uchwyt", quantity: 3, pricePerUnit: 25 }, // Zależne od guides, domyślnie tak jak guides
       ],
       snapPoints: {
@@ -179,7 +179,7 @@ export const FURNITURE_CATALOG = {
     {
       name: "Szafka narożna D",
       dimensions: { width: 900, height: 850, depth: 900 },
-      basePrice: 680,
+      basePrice: 400,
       material: {
         type: "Płyta melamina" as MaterialType,
         pricePerM2: 85,
@@ -194,9 +194,9 @@ export const FURNITURE_CATALOG = {
       },
       frontType: "Gładki" as FrontType,
       hardware: [
-        { name: "Zawiasy", quantity: 3, pricePerUnit: 8 },
-        { name: "Nóżki", quantity: 6, pricePerUnit: 12 },
-        { name: "Karuzela narożna", quantity: 2, pricePerUnit: 180 },
+        { name: "Zawiasy", quantity: 3, pricePerUnit: 15 },
+        { name: "Nóżki", quantity: 6, pricePerUnit: 6 },
+        { name: "Karuzela narożna", quantity: 2, pricePerUnit: 1200 },
       ],
       snapPoints: {
         left: true,
@@ -213,7 +213,7 @@ export const FURNITURE_CATALOG = {
     {
       name: "Zmywarka",
       dimensions: { width: 600, height: 820, depth: 550 },
-      basePrice: 2100,
+      basePrice: 400,
       material: {
         type: "MDF" as MaterialType,
         pricePerM2: 0,
@@ -238,7 +238,7 @@ export const FURNITURE_CATALOG = {
     {
       name: "Szafka Podstawowa",
       dimensions: { width: 600, height: 700, depth: 350 },
-      basePrice: 380,
+      basePrice: 150,
       material: {
         type: "Płyta melamina" as MaterialType,
         pricePerM2: 85,
@@ -253,8 +253,8 @@ export const FURNITURE_CATALOG = {
       },
       frontType: "Gładki" as FrontType,
       hardware: [
-        { name: "Zawiasy", quantity: 4, pricePerUnit: 8 },
-        { name: "Uchwyt", quantity: 1, pricePerUnit: 25 },
+        { name: "Zawiasy", quantity: 4, pricePerUnit: 15 },
+        { name: "Uchwyt", quantity: 1, pricePerUnit: 15 },
       ],
       snapPoints: {
         left: true,
@@ -273,7 +273,7 @@ export const FURNITURE_CATALOG = {
     {
       name: "Nadstawka Podstawowa",
       dimensions: { width: 600, height: 600, depth: 200 },
-      basePrice: 300,
+      basePrice: 100,
       material: {
         type: "Płyta melamina" as MaterialType,
         pricePerM2: 85,
@@ -289,7 +289,7 @@ export const FURNITURE_CATALOG = {
       frontType: "Gładki" as FrontType,
       hardware: [
         { name: "Siłowniki", quantity: 2, pricePerUnit: 40 },
-        { name: "Zawiasy", quantity: 2, pricePerUnit: 8 }, // dodano zawiasy
+        { name: "Zawiasy", quantity: 2, pricePerUnit: 15 }, // dodano zawiasy
       ],
       snapPoints: {
         left: true,
@@ -312,7 +312,7 @@ export const FURNITURE_CATALOG = {
       material: {
         type: "Laminat" as MaterialType,
         pricePerM2: 120,
-        thickness: 40,
+        thickness: 36,
         color: "#2C3E50",
         textures: {
           baseColor: "/textures/Marble01_1K-JPG_Color.jpg",
@@ -339,11 +339,11 @@ export const FURNITURE_CATALOG = {
     {
       name: "Blat 120cm",
       dimensions: { width: 1200, height: 40, depth: 600 },
-      basePrice: 290,
+      basePrice: 300,
       material: {
         type: "Laminat" as MaterialType,
         pricePerM2: 120,
-        thickness: 40,
+        thickness: 36,
         color: "#2C3E50",
         textures: {
           baseColor: "/textures/Marble01_1K-JPG_Color.jpg",
@@ -372,7 +372,7 @@ export const FURNITURE_CATALOG = {
     {
       name: "Piekarnik",
       dimensions: { width: 600, height: 600, depth: 550 },
-      basePrice: 1800,
+      basePrice: 150,
       material: {
         type: "MDF" as MaterialType,
         pricePerM2: 0,
@@ -396,7 +396,7 @@ export const FURNITURE_CATALOG = {
     {
       name: "Okap",
       dimensions: { width: 600, height: 150, depth: 500 },
-      basePrice: 850,
+      basePrice: 200,
       material: {
         type: "MDF" as MaterialType,
         pricePerM2: 0,
@@ -419,7 +419,7 @@ export const FURNITURE_CATALOG = {
     {
       name: "Mikrofala",
       dimensions: { width: 600, height: 300, depth: 500 },
-      basePrice: 850,
+      basePrice: 150,
       material: {
         type: "MDF" as MaterialType,
         pricePerM2: 0,
