@@ -13,6 +13,40 @@ export const PX_TO_MM = 10;
 export const MM_TO_PX = 1 / PX_TO_MM;
 
 /**
+ * Maximum allowed dimension for a room (width or depth) in millimeters.
+ * 10 meters = 10000 mm.
+ */
+export const MAX_ROOM_DIMENSION_MM = 10000;
+
+/**
+ * Validates if the bounding box of the given walls exceeds MAX_ROOM_DIMENSION_MM.
+ * Returns true if valid, false if the room is too large.
+ */
+export function validateRoomBounds(walls: Wall2D[]): boolean {
+  if (walls.length === 0) return true;
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  for (const wall of walls) {
+    minX = Math.min(minX, wall.startNode[0], wall.endNode[0]);
+    maxX = Math.max(maxX, wall.startNode[0], wall.endNode[0]);
+    minY = Math.min(minY, wall.startNode[1], wall.endNode[1]);
+    maxY = Math.max(maxY, wall.startNode[1], wall.endNode[1]);
+  }
+
+  const widthPx = maxX - minX;
+  const depthPx = maxY - minY;
+  
+  const widthMm = widthPx * PX_TO_MM;
+  const depthMm = depthPx * PX_TO_MM;
+
+  return widthMm <= MAX_ROOM_DIMENSION_MM && depthMm <= MAX_ROOM_DIMENSION_MM;
+}
+
+/**
  * Calculate the Euclidean distance between two 2D points
  */
 export function distance(p1: [number, number], p2: [number, number]): number {
@@ -30,13 +64,13 @@ export function normalizeAngle(degrees: number): number {
 
 /**
  * Snaps an angle (in radians) to the nearest common angle if within threshold
- * Common angles: 0, 90, 180, 270 (in degrees)
+ * Common angles: 0, 45, 90, 135, 180, 225, 270, 315, 360 (in degrees)
  */
 export function snapAngle(radians: number, thresholdDegrees: number = 5): number {
   let degrees = radians * (180 / Math.PI);
   degrees = normalizeAngle(degrees);
   
-  const snapAngles = [0, 90, 180, 270, 360];
+  const snapAngles = [0, 45, 90, 135, 180, 225, 270, 315, 360];
   
   for (const snap of snapAngles) {
     if (Math.abs(degrees - snap) <= thresholdDegrees) {

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useProjectStore, Wall2D, Door } from "../../store/project-store";
-import { distance, resizeWallByLength, snapAngle, normalizeAngle, resizeWallByAngle } from "../../utils/geometry-2d";
+import { distance, resizeWallByLength, snapAngle, normalizeAngle, resizeWallByAngle, validateRoomBounds } from "../../utils/geometry-2d";
 
 type ToolMode = "select" | "draw" | "add-door";
 
@@ -138,7 +138,18 @@ export function RoomSetup2D() {
           thickness: 100
         };
 
-        setWalls([...walls, newWall]);
+        const proposedWalls = [...walls, newWall];
+
+        if (!validateRoomBounds(proposedWalls)) {
+            toast.error("Ściana wychodzi poza maksymalny dopuszczalny rozmiar pokoju (10x10m).");
+            // Auto close if it was going to close, since drawing stops anyway
+            if (!isDrawing) { 
+                setIsDrawing(true); // Re-arm drawing so the user isn't stuck closed
+            }
+            return; // Cancel adding this wall
+        }
+
+        setWalls(proposedWalls);
 
         if (isDrawing) {
             // Continues drawing from the new end point
@@ -315,6 +326,12 @@ export function RoomSetup2D() {
                  startNode: [updatedWalls[i].startNode[0] + dx, updatedWalls[i].startNode[1] + dy],
                  endNode: [updatedWalls[i].endNode[0] + dx, updatedWalls[i].endNode[1] + dy]
              };
+         }
+         
+         const { validateRoomBounds } = require('../../utils/geometry-2d');
+         if (!validateRoomBounds(updatedWalls)) {
+            toast.error("Wymiary pokoju po zmianie przekraczają maksymalny dopuszczalny rozmiar (10x10m).");
+            return;
          }
          
          setWalls(updatedWalls);
@@ -573,6 +590,9 @@ export function RoomSetup2D() {
                const rawAngle = Math.atan2(dy, dx);
                const degrees = normalizeAngle(rawAngle * (180 / Math.PI));
                
+               const cx = currentLine.start[0] + dx / 2;
+               const cy = currentLine.start[1] + dy / 2;
+               
                return (
                  <g>
                    <line 
@@ -596,6 +616,18 @@ export function RoomSetup2D() {
                    >
                      {Math.round(degrees)}°
                    </text>
+                   
+                   {/* Live Distance Indicator */}
+                   <g transform={`translate(${cx}, ${cy}) rotate(${degrees})`} className="pointer-events-none">
+                      <rect 
+                        x="-25" y="-14" width="50" height="16" rx="4" 
+                        fill="#0f1115" stroke="#10b981" strokeWidth="1" 
+                        className="opacity-90"
+                      />
+                      <text x="0" y="-3" fontSize="10" fill="#10b981" textAnchor="middle" fontWeight="bold">
+                         {Math.round(distance(currentLine.start, currentLine.end) * 10)} mm
+                      </text>
+                   </g>
                  </g>
                )
             })()}

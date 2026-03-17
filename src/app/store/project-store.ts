@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { Furniture3D, Room3D, Wall } from "../components/configurator3d/types";
+import { CountertopManager } from "../utils/countertop-manager";
 
 // New Door Type
 export interface Door {
@@ -20,6 +21,7 @@ export interface Wall2D extends Wall {
 interface ProjectState {
   // Global View State
   isSetupComplete: boolean;
+  startMode: "menu" | "drawing" | "preset_selection";
   
   // Room State
   room: Room3D;
@@ -39,6 +41,7 @@ interface ProjectState {
 
   // Actions
   setSetupComplete: (complete: boolean) => void;
+  setStartMode: (mode: "menu" | "drawing" | "preset_selection") => void;
   setRoom: (room: Room3D) => void;
   
   // Wall Actions
@@ -55,6 +58,7 @@ interface ProjectState {
   updateFurniture: (id: string, updates: Partial<Furniture3D>) => void;
   removeFurniture: (id: string) => void;
   setFurniture: (furniture: Furniture3D[]) => void;
+  autoGenerateCountertops: () => void;
   
   // History Actions
   undo: () => void;
@@ -68,6 +72,7 @@ interface ProjectState {
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   isSetupComplete: false,
+  startMode: "menu",
   
   room: { width: 6, height: 3, depth: 5 },
   walls: [],
@@ -78,6 +83,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   historyIndex: 0,
 
   setSetupComplete: (complete) => set({ isSetupComplete: complete }),
+  setStartMode: (mode) => set({ startMode: mode }),
   
   setRoom: (room) => set({ room }),
 
@@ -144,8 +150,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({ furniture });
     get().addToHistory();
   },
+  autoGenerateCountertops: () => {
+    set((state) => {
+      const newFurnitureList = CountertopManager.generateCountertops(state.furniture);
+      return { furniture: newFurnitureList };
+    });
+    get().addToHistory();
+  },
 
-  // Undo / Redo
+  // History Actions
   undo: () => set((state) => {
     if (state.historyIndex > 0) {
       const prevIndex = state.historyIndex - 1;

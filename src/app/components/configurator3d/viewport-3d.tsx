@@ -71,6 +71,7 @@ function FurnitureContent({
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const transformRef = useRef<any>(null);
+  const [isSnapped, setIsSnapped] = useState(false);
 
   // Convert mm to meters for Three.js
   const width = (furniture.dimensions.width / 1000) * furniture.scale[0];
@@ -98,8 +99,7 @@ function FurnitureContent({
     });
   }, [textures, width, height]);
 
-  // --- NOWY KOD: Funkcja blokująca na ścianach i podłodze ---
- // --- ZAKTUALIZOWANY KOD: Funkcja blokująca na ścianach z uwzględnieniem obrotu ---
+  // --- NOWY KOD: Funkcja blokująca na ś  // --- ZAKTUALIZOWANY KOD: Funkcja blokująca na ścianach z uwzględnieniem obrotu ---
   const applyClamping = (position: THREE.Vector3): THREE.Vector3 => {
     // 1. Pobieramy kąt obrotu na osi Y (w radianach)
     const rotY = furniture.rotation[1];
@@ -111,37 +111,82 @@ function FurnitureContent({
     const boundingWidth = width * cos + depth * sin;
     const boundingDepth = depth * cos + width * sin;
 
-    // 3. Używamy zaktualizowanych wymiarów do blokowania
-    const minX = -(room.width / 2) + (boundingWidth / 2);
-    const maxX = (room.width / 2) - (boundingWidth / 2);
+    // 3. Obliczamy faktyczne granice pokoju na podstawie narysowanych ścian
+    let roomMinX = -(room.width / 2);
+    let roomMaxX = (room.width / 2);
+    let roomMinZ = -(room.depth / 2);
+    let roomMaxZ = (room.depth / 2);
+
+    if (walls.length > 0) {
+      roomMinX = Infinity;
+      roomMaxX = -Infinity;
+      roomMinZ = Infinity;
+      roomMaxZ = -Infinity;
+
+      // Współczynnik 10mm na 1 pixel
+      const PX_TO_M = 10 / 1000;
+
+      walls.forEach(w => {
+        const sx = (w.startNode[0] - canvasCenterPx[0]) * PX_TO_M;
+        const sz = (w.startNode[1] - canvasCenterPx[1]) * PX_TO_M;
+        const ex = (w.endNode[0] - canvasCenterPx[0]) * PX_TO_M;
+        const ez = (w.endNode[1] - canvasCenterPx[1]) * PX_TO_M;
+
+        roomMinX = Math.min(roomMinX, sx, ex);
+        roomMaxX = Math.max(roomMaxX, sx, ex);
+        roomMinZ = Math.min(roomMinZ, sz, ez);
+        roomMaxZ = Math.max(roomMaxZ, sz, ez);
+      });
+      
+      // Dodajemy margines dla grubości ścian (np. połowa ze standardowych 10cm)
+      roomMinX -= 0.05;
+      roomMaxX += 0.05;
+      roomMinZ -= 0.05;
+      roomMaxZ += 0.05;
+    }
+
+    // 4. Używamy zaktualizowanych wymiarów do blokowania
+    let minX = roomMinX + (boundingWidth / 2);
+    let maxX = roomMaxX - (boundingWidth / 2);
     
     const minY = height / 2; 
     const maxY = room.height - (height / 2); 
     
-    const minZ = -(room.depth / 2) + (boundingDepth / 2);
-    const maxZ = (room.depth / 2) - (boundingDepth / 2);
+    let minZ = roomMinZ + (boundingDepth / 2);
+    let maxZ = roomMaxZ - (boundingDepth / 2);
+    
+    // Zabezpieczenie przed sytuacją gdy mebel jest większy niż cały pokój
+    if (minX > maxX) {
+      const mid = (minX + maxX) / 2;
+      minX = mid; maxX = mid;
+    }
+    if (minZ > maxZ) {
+      const mid = (minZ + maxZ) / 2;
+      minZ = mid; maxZ = mid;
+    }
 
     return new THREE.Vector3(
       Math.max(minX, Math.min(maxX, position.x)),
       Math.max(minY, Math.min(maxY, position.y)),
       Math.max(minZ, Math.min(maxZ, position.z))
     );
-  }; 
+  };
 
   // Intelligent snapping logic
   const applySnapping = (
     position: THREE.Vector3,
     furnitureId: string
-  ): { position: THREE.Vector3; rotationY?: number } => {
-    if (!snapEnabled) return { position };
+  ): { position: THREE.Vector3; rotationY?: number; isSnapped: boolean } => {
+    if (!snapEnabled) return { position, isSnapped: false };
 
     const snappedPos = position.clone();
     let snappedRotY = furniture.rotation[1];
     const currentFurniture = allFurniture.find((f) => f.id === furnitureId);
-    if (!currentFurniture) return { position };
+    if (!currentFurniture) return { position, isSnapped: false };
 
     const halfWidth = width / 2;
     const halfDepth = depth / 2;
+    let isSnapped = false;
     let snappedToOther = false;
 
     // Snap to other furniture (side-by-side)
@@ -166,6 +211,7 @@ function FurnitureContent({
           snappedPos.x = otherPos.x - otherHalfWidth - halfWidth;
           snappedPos.z = otherPos.z;
           snappedToOther = true;
+          isSnapped = true;
         }
 
         // Snap left side to right side of other
@@ -177,6 +223,7 @@ function FurnitureContent({
           snappedPos.x = otherPos.x + otherHalfWidth + halfWidth;
           snappedPos.z = otherPos.z;
           snappedToOther = true;
+          isSnapped = true;
         }
 
         // Snap back to front of other
@@ -188,6 +235,7 @@ function FurnitureContent({
           snappedPos.z = otherPos.z - otherHalfDepth - halfDepth;
           snappedPos.x = otherPos.x;
           snappedToOther = true;
+          isSnapped = true;
         }
 
         // Snap front to back of other
@@ -199,6 +247,7 @@ function FurnitureContent({
           snappedPos.z = otherPos.z + otherHalfDepth + halfDepth;
           snappedPos.x = otherPos.x;
           snappedToOther = true;
+          isSnapped = true;
         }
       }
     }
@@ -248,17 +297,25 @@ function FurnitureContent({
             
             // Align rotation to face interior (normal of the wall face we snapped to)
             snappedRotY = wallProps.rotation + (side === 1 ? 0 : Math.PI);
+            isSnapped = true;
         }
       }
     }
 
-    return { position: snappedPos, rotationY: snappedRotY };
+    return { position: snappedPos, rotationY: snappedRotY, isSnapped };
   };
 
   // Attach transform controls when selected
   useEffect(() => {
     if (transformRef.current && meshRef.current && isSelected) {
       transformRef.current.attach(meshRef.current);
+    }
+  }, [isSelected]);
+
+  // Reset glow when deselected
+  useEffect(() => {
+    if (!isSelected) {
+      setIsSnapped(false);
     }
   }, [isSelected]);
 
@@ -297,8 +354,8 @@ function FurnitureContent({
           color={hasCollision ? "#ff4444" : furniture.material.color}
           metalness={0.2}
           roughness={0.8}
-          emissive={isSelected ? "#3498db" : hasCollision ? "#ff0000" : "#000000"}
-          emissiveIntensity={isSelected ? 0.2 : hasCollision ? 0.3 : 0}
+          emissive={isSelected ? (isSnapped ? "#10b981" : "#3498db") : hasCollision ? "#ff0000" : "#000000"}
+          emissiveIntensity={isSelected ? (isSnapped ? 0.4 : 0.2) : hasCollision ? 0.3 : 0}
         />
 
         {/* Tył (5) */}
@@ -311,9 +368,9 @@ function FurnitureContent({
           />
           <lineBasicMaterial
             color={
-              isSelected ? "#00ffff" : hasCollision ? "#ff0000" : "#ffffff"
+              isSelected ? (isSnapped ? "#10b981" : "#00ffff") : hasCollision ? "#ff0000" : "#ffffff"
             }
-            linewidth={isSelected ? 3 : 1}
+            linewidth={isSelected ? (isSnapped ? 4 : 2) : 1}
             transparent
             opacity={isSelected ? 0.8 : 0.3}
           />
@@ -349,9 +406,12 @@ function FurnitureContent({
                 newPosition = snapResult.position;
                 if (snapResult.rotationY !== undefined) newRotY = snapResult.rotationY;
                 
+                setIsSnapped(snapResult.isSnapped);
                 newPosition = applyClamping(newPosition);
                 meshRef.current.position.copy(newPosition);
                 meshRef.current.rotation.y = newRotY;
+              } else {
+                setIsSnapped(false);
               }
 
               onTransform(
@@ -372,24 +432,6 @@ function FurnitureContent({
         />
       )}
     </group>
-  );
-}
-
-function FurnitureMesh(props: any) {
-  return (
-    <Suspense fallback={
-      // Prosty fallback - renderuje bryłę o kolorze materiału bez tekstury w trakcie ładowania
-      <mesh position={props.furniture.position} scale={props.furniture.scale}>
-         <boxGeometry args={[
-           props.furniture.dimensions.width / 1000, 
-           props.furniture.dimensions.height / 1000, 
-           props.furniture.dimensions.depth / 1000
-          ]} />
-         <meshStandardMaterial color={props.furniture.material.color || "#cccccc"} />
-      </mesh>
-    }>
-      <FurnitureContent {...props} />
-    </Suspense>
   );
 }
 
@@ -649,7 +691,7 @@ function Scene({
 
       {/* Furniture */}
       {furniture.map((item) => (
-        <FurnitureMesh
+        <FurnitureContent
           key={item.id}
           furniture={item}
           isSelected={item.id === selectedId}
@@ -718,7 +760,7 @@ export function Viewport3D(props: ViewportProps) {
     <div className="relative w-full h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <LoadingScreen />
       
-      <Canvas shadows dpr={[1, 2]} gl={{ antialias: true }}>
+      <Canvas shadows dpr={[1, 2]} gl={{ antialias: true, preserveDrawingBuffer: true }}>
         <Suspense fallback={null}>
           <Scene {...props} />
         </Suspense>

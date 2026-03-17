@@ -37,6 +37,7 @@ export function Configurator3D() {
     updateFurniture,
     removeFurniture,
     setFurniture,
+    autoGenerateCountertops,
     undo,
     redo,
     getProjectData,
@@ -56,23 +57,25 @@ export function Configurator3D() {
     catalogItem: (typeof FURNITURE_CATALOG)[keyof typeof FURNITURE_CATALOG][number],
     category: string
   ) => {
+    const itemHeight = catalogItem.dimensions?.height ?? 800;
+
     const newFurniture: Furniture3D = {
       id: `furniture-${Date.now()}`,
-      name: catalogItem.name,
+      name: catalogItem.name || "Mebel",
       category: category as Furniture3D["category"],
-      position: [0, (catalogItem.dimensions.height / 2000), 0],
+      position: [0, itemHeight / 2000, 0],
       rotation: [0, 0, 0],
       scale: [1, 1, 1],
-      dimensions: catalogItem.dimensions,
-      material: catalogItem.material,
-      frontType: catalogItem.frontType,
-      basePrice: catalogItem.basePrice,
-      hardware: catalogItem.hardware,
-      snapPoints: catalogItem.snapPoints,
-      isAppliance: catalogItem.isAppliance,
-      shelfCount: (catalogItem as any).shelfCount ?? 2, 
+      dimensions: catalogItem.dimensions!,
+      material: catalogItem.material!,
+      frontType: catalogItem.frontType!,
+      basePrice: catalogItem.basePrice ?? 0,
+      hardware: catalogItem.hardware ?? [],
+      snapPoints: catalogItem.snapPoints!,
+      isAppliance: catalogItem.isAppliance ?? false,
+      shelfCount: (catalogItem as any).shelfCount ?? 2,
       guides: (catalogItem as any).guides,
-      requiresSupport: catalogItem.requiresSupport,
+      requiresSupport: catalogItem.requiresSupport ?? false,
     };
 
     addFurniture(newFurniture);
@@ -153,92 +156,156 @@ export function Configurator3D() {
         format: "a4",
       });
 
-      // register Roboto font so that polish letters like ąęćńłóśżźć are rendered correctly
+      // Register Roboto font so that Polish letters like ąęćńłóśżźć are rendered correctly
       const robotoBase64 = await loadRobotoBase64();
       pdf.addFileToVFS("Roboto-Regular.ttf", robotoBase64);
       pdf.addFont("Roboto-Regular.ttf", "Roboto", "normal");
       pdf.setFont("Roboto");
 
-      // Title page
-      pdf.setFontSize(24);
-      pdf.text("Dokumentacja Techniczna", 15, 20);
+      let y = 15;
+      const margin = 15;
+      const pageWidth = pdf.internal.pageSize.getWidth();
+
+      // --- Header / Title ---
+      pdf.setFontSize(22);
+      pdf.setTextColor(30, 41, 59); // Slate 800
+      pdf.text("Projekt Pomieszczenia", margin, y);
+      
       pdf.setFontSize(10);
-      pdf.text(`Data: ${new Date().toLocaleDateString("pl-PL")}`, 15, 30);
+      pdf.setTextColor(100, 116, 139); // Slate 500
+      pdf.text(`Wygenerowano: ${new Date().toLocaleString("pl-PL")}`, pageWidth - margin, y, { align: "right" });
+      
+      y += 8;
+      pdf.setDrawColor(226, 232, 240); // Slate 200
+      pdf.line(margin, y, pageWidth - margin, y);
+      y += 8;
 
-      let y = 45;
+      // --- 3D Scene Screenshot ---
+      const canvas = document.querySelector('canvas');
+      if (canvas) {
+        try {
+          const imgData = canvas.toDataURL('image/png');
+          const imgWidth = pageWidth - (margin * 2);
+          // calculate proportional height
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          
+          pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight);
+          y += imgHeight + 10;
+        } catch (e) {
+          console.error("Failed to capture 3D canvas screenshot.", e);
+        }
+      }
 
-      // Project summary
+      // Automatically add new page if needed
+      const checkPageBreak = (spaceNeeded: number) => {
+         if (y + spaceNeeded > 280) {
+            pdf.addPage();
+            y = margin + 5;
+            return true;
+         }
+         return false;
+      };
+
+      // --- Room & Walls Properties ---
       pdf.setFontSize(16);
-      pdf.text("Podsumowanie projektu", 15, y);
-      y += 10;
+      pdf.setTextColor(15, 23, 42); 
+      pdf.text("Parametry ścian", margin, y);
+      y += 8;
 
       pdf.setFontSize(10);
-      pdf.text(`Wymiary pomieszczenia: ${room.width}m × ${room.height}m × ${room.depth}m`, 15, y);
+      pdf.setTextColor(71, 85, 105);
+      
+      // Draw Wall Table Headers
+      pdf.setFont("Roboto", "bold");
+      pdf.text("Ściana", margin, y);
+      pdf.text("Długość (mm)", margin + 40, y);
+      pdf.text("Kąt (°)", margin + 80, y);
+      pdf.line(margin, y + 2, margin + 120, y + 2);
       y += 7;
-      pdf.text(`Liczba elementów: ${furniture.length}`, 15, y);
-      y += 7;
-      pdf.text(
-        `Całkowita powierzchnia płyt: ${production.totalPanelArea.toFixed(2)} m²`,
-        15,
-        y
-      );
-      y += 7;
-      y += 7;
-      pdf.text(
-        `Koszt całkowity: ${production.totalPrice.toLocaleString("pl-PL")} PLN`,
-        15,
-        y
-      );
+      
+      pdf.setFont("Roboto", "normal");
+      walls.forEach((wall, idx) => {
+         checkPageBreak(10);
+         // Compute distance & angle from existing nodes
+         const dx = wall.endNode[0] - wall.startNode[0];
+         const dy = wall.endNode[1] - wall.startNode[1];
+         const rawAngle = Math.atan2(dy, dx) * 180 / Math.PI;
+         let angleDeg = Math.round(rawAngle % 360);
+         if (angleDeg < 0) angleDeg += 360;
+         
+         const distMm = Math.round(Math.sqrt(dx*dx + dy*dy) * 10);
+         
+         pdf.text(`${idx + 1}`, margin, y);
+         pdf.text(`${distMm}`, margin + 40, y);
+         pdf.text(`${angleDeg}°`, margin + 80, y);
+         y += 6;
+      });
+      y += 5;
+      
+      checkPageBreak(30);
+
+      // --- Project Summary ---
+      pdf.setFontSize(16);
+      pdf.setTextColor(15, 23, 42);
+      pdf.text("Podsumowanie projektu", margin, y);
+      y += 8;
+
+      pdf.setFontSize(11);
+      pdf.setTextColor(30, 41, 59);
+      pdf.text(`Liczba elementów meblowych: ${furniture.length}`, margin, y);
+      y += 6;
+      pdf.text(`Całkowita powierzchnia płyt: ${production.totalPanelArea.toFixed(2)} m²`, margin, y);
+      y += 6;
+      
+      pdf.setFont("Roboto", "bold");
+      pdf.text(`Koszt całkowity: ${production.totalPrice.toLocaleString("pl-PL")} PLN`, margin, y);
+      pdf.setFont("Roboto", "normal");
       y += 15;
 
-      // Cutting list
+      // --- Cutting list ---
+      checkPageBreak(25);
       pdf.setFontSize(16);
-      pdf.text("Lista formatek do cięcia", 15, y);
-      y += 10;
+      pdf.setTextColor(15, 23, 42);
+      pdf.text("Lista formatek do cięcia", margin, y);
+      y += 8;
 
-      pdf.setFontSize(8);
+      pdf.setFontSize(9);
+      pdf.setTextColor(71, 85, 105);
       production.panelCuttingList.forEach((cut) => {
-        if (y > 270) {
-          pdf.addPage();
-          y = 20;
-        }
+        checkPageBreak(6);
         pdf.text(
-          `${cut.furnitureName} - ${cut.panelType}: ${cut.width}×${cut.height}mm (${cut.material}) ×${cut.quantity}`,
-          20,
+          `• ${cut.furnitureName} - ${cut.panelType}: ${cut.width}×${cut.height}mm (${cut.material}) ×${cut.quantity}`,
+          margin,
           y
         );
         y += 5;
       });
 
       y += 10;
-      if (y > 250) {
-        pdf.addPage();
-        y = 20;
-      }
+      checkPageBreak(25);
 
-      // Hardware list
+      // --- Hardware list ---
       pdf.setFontSize(16);
-      pdf.text("Zestawienie okuć i akcesoriów", 15, y);
-      y += 10;
+      pdf.setTextColor(15, 23, 42);
+      pdf.text("Zestawienie okuć i akcesoriów", margin, y);
+      y += 8;
 
-      pdf.setFontSize(8);
+      pdf.setFontSize(9);
+      pdf.setTextColor(71, 85, 105);
       production.hardwareList.forEach((hw) => {
-        if (y > 270) {
-          pdf.addPage();
-          y = 20;
-        }
+        checkPageBreak(6);
         pdf.text(
-          `${hw.name}: ${hw.quantity} szt. × ${hw.pricePerUnit} PLN = ${(
+          `• ${hw.name}: ${hw.quantity} szt. × ${hw.pricePerUnit} PLN = ${(
             hw.quantity * hw.pricePerUnit
           ).toFixed(2)} PLN`,
-          20,
+          margin,
           y
         );
         y += 5;
       });
 
       // Save
-      pdf.save(`projekt-meble-${Date.now()}.pdf`);
+      pdf.save(`projekt-pomieszczenia-${Date.now()}.pdf`);
       toast.success("Dokumentacja wygenerowana!");
     } catch (error) {
       console.error("PDF export error:", error);
@@ -405,6 +472,22 @@ export function Configurator3D() {
 
           <div className="h-8 w-px bg-gray-700 mx-2" />
 
+          {/* New Generuj Blaty button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              autoGenerateCountertops();
+              toast.success("Połączono szafki blatami!");
+            }}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-emerald-900/20"
+          >
+            <Grid3x3 className="w-4 h-4" />
+            <span>Generuj Blaty</span>
+          </motion.button>
+
+          <div className="h-8 w-px bg-gray-700 mx-2" />
+
           {/* Snap toggle */}
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -417,10 +500,10 @@ export function Configurator3D() {
             }}
             className={`p-2 rounded transition-colors ${
               snapEnabled
-                ? "bg-purple-600 text-white"
-                : "bg-gray-800 text-gray-400 hover:text-white"
+                ? "bg-emerald-500/20 text-emerald-400"
+                : "bg-gray-800 text-gray-400"
             }`}
-            title="Inteligentne przyciąganie"
+            title="Magnetyczne przyciąganie"
           >
             <Magnet className="w-4 h-4" />
           </motion.button>

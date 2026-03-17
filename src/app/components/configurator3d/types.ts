@@ -3,28 +3,28 @@
 export type MaterialType = "MDF" | "Laminat" | "Fornir" | "Płyta melamina";
 export type FrontType = "Gładki" | "Frezowany" | "Szkło" | "Lustro";
 export type FurnitureCategory =
-  | "Szafka dolna"
-  | "Szafka górna"
-  | "Blat"
+  | "Szafki dolne"
+  | "Szafki górne"
+  | "Blaty"
   | "AGD"
-  | "Słupek"
-  | "Wyspa";
+  | "Słupki"
+  | "Wyspy";
 
   export interface TextureMaps {
-  baseColor: string;   // Główny plik mapy (albedo)
-  frontColor?: string;       // <--- DODAJ TĘ LINIJKĘ
-  normal?: string;    // Mapa nierówności (daje efekt głębi słoja drewna)
-  roughness?: string; // Mapa chropowatości (mat vs połysk)
-  ambientOcclusion?: string; // Cienie w zakamarkach
-  repeat?: [number, number]; // Skalowanie tekstury (np. [2, 2])
+  baseColor: string;
+  frontColor?: string;
+  normal?: string;
+  roughness?: string;
+  ambientOcclusion?: string;
+  repeat?: [number, number];
 }
 
 export interface Material {
   type: MaterialType;
-  pricePerM2: number; // Price per square meter
-  thickness: number; // in mm
-  color: string; // Hex color for 3D visualization
-  textures?: TextureMaps; // Optional texture maps for 3D rendering
+  pricePerM2: number;
+  thickness: number;
+  color: string;
+  textures?: TextureMaps;
 }
 
 export interface Hardware {
@@ -37,7 +37,7 @@ export interface Furniture3D {
   id: string;
   name: string;
   category: FurnitureCategory;
- 
+
 
   // 3D Transform (in meters for Three.js)
   position: [number, number, number];
@@ -108,37 +108,35 @@ export interface PanelCut {
   material: MaterialType;
 }
 
+const woodTextureMap: TextureMaps = {
+  frontColor: "/textures/Wood094_1K-JPG_Color.jpg",
+  baseColor: "/textures/Wood094_1K-JPG_Color.jpg",
+  normal: "/textures/Wood094_1K-JPG_NormalDX.jpg",
+  roughness: "/textures/Wood094_1K-JPG_Roughness.jpg",
+};
+
 // Predefined furniture catalog
-export const FURNITURE_CATALOG = {
+export const FURNITURE_CATALOG: Record<FurnitureCategory, Partial<Furniture3D>[]> = {
   "Szafki dolne": [
     {
       name: "Szafka Podstawowa",
       dimensions: { width: 600, height: 850, depth: 600 },
       basePrice: 200,
       material: {
-        type: "Płyta melamina" as MaterialType,
+        type: "Płyta melamina",
         pricePerM2: 85,
         thickness: 18,
         color: "#8B6F47",
-        textures: {
-          frontColor: "/textures/Wood094_1K-JPG_Color.jpg",
-          baseColor: "/textures/Wood094_1K-JPG_Color.jpg",
-          normal: "/textures/Wood094_1K-JPG_NormalDX.jpg",
-          roughness: "/textures/Wood094_1K-JPG_Roughness.jpg",
-        },
+        textures: woodTextureMap,
       },
-      frontType: "Gładki" as FrontType,
+      frontType: "Gładki",
       hardware: [
         { name: "Zawiasy", quantity: 4, pricePerUnit: 15 },
         { name: "Nóżki", quantity: 4, pricePerUnit: 6 },
         { name: "Uchwyt", quantity: 1, pricePerUnit: 25 },
       ],
       snapPoints: {
-        left: true,
-        right: true,
-        top: true,
-        bottom: false,
-        back: true,
+        left: true, right: true, top: true, bottom: false, back: true,
       },
       isAppliance: false,
       requiresSupport: true,
@@ -148,32 +146,23 @@ export const FURNITURE_CATALOG = {
       dimensions: { width: 800, height: 850, depth: 600 },
       basePrice: 150,
       material: {
-        type: "Płyta melamina" as MaterialType,
+        type: "Płyta melamina",
         pricePerM2: 85,
         thickness: 18,
         color: "#A0826D",
-        textures: {
-          frontColor: "/textures/Wood094_1K-JPG_Color.jpg",
-          baseColor: "/textures/Wood094_1K-JPG_Color.jpg",
-          normal: "/textures/Wood094_1K-JPG_NormalDX.jpg",
-          roughness: "/textures/Wood094_1K-JPG_Roughness.jpg",
-        },
+        textures: woodTextureMap,
       },
-      frontType: "Gładki" as FrontType,
+      frontType: "Gładki",
       hardware: [
         { name: "Zawiasy", quantity: 4, pricePerUnit: 15 },
         { name: "Nóżki", quantity: 4, pricePerUnit: 6 },
-        { name: "Uchwyt", quantity: 3, pricePerUnit: 25 }, // Zależne od guides, domyślnie tak jak guides
+        { name: "Uchwyt", quantity: 3, pricePerUnit: 25 },
       ],
       snapPoints: {
-        left: true,
-        right: true,
-        top: true,
-        bottom: false,
-        back: true,
+        left: true, right: true, top: true, bottom: false, back: true,
       },
       isAppliance: false,
-      guides: 3, // custom property
+      guides: 3,
       requiresSupport: true,
     },
     {
@@ -181,58 +170,25 @@ export const FURNITURE_CATALOG = {
       dimensions: { width: 900, height: 850, depth: 900 },
       basePrice: 400,
       material: {
-        type: "Płyta melamina" as MaterialType,
+        type: "Płyta melamina",
         pricePerM2: 85,
         thickness: 18,
         color: "#8B6F47",
-        textures: {
-          frontColor: "/textures/Wood094_1K-JPG_Color.jpg",
-          baseColor: "/textures/Wood094_1K-JPG_Color.jpg",
-          normal: "/textures/Wood094_1K-JPG_NormalDX.jpg",
-          roughness: "/textures/Wood094_1K-JPG_Roughness.jpg",
-        },
+        textures: woodTextureMap,
       },
-      frontType: "Gładki" as FrontType,
+      frontType: "Gładki",
       hardware: [
         { name: "Zawiasy", quantity: 3, pricePerUnit: 15 },
         { name: "Nóżki", quantity: 6, pricePerUnit: 6 },
         { name: "Karuzela narożna", quantity: 2, pricePerUnit: 1200 },
       ],
       snapPoints: {
-        left: true,
-        right: true,
-        top: true,
-        bottom: false,
-        back: true,
+        left: true, right: true, top: true, bottom: false, back: true,
       },
       isAppliance: false,
       shelfCount: 1,
-
       requiresSupport: true,
-    },
-    {
-      name: "Zmywarka",
-      dimensions: { width: 600, height: 820, depth: 550 },
-      basePrice: 400,
-      material: {
-        type: "MDF" as MaterialType,
-        pricePerM2: 0,
-        thickness: 0,
-        color: "#2C3E50",
-      },
-      frontType: "Gładki" as FrontType,
-      hardware: [],
-      snapPoints: {
-        left: false,
-        right: false,
-        top: false,
-        bottom: false,
-        back: true,
-      },
-      isAppliance: true,
-
-      requiresSupport: true,
-    },
+    }
   ],
   "Szafki górne": [
     {
@@ -240,100 +196,144 @@ export const FURNITURE_CATALOG = {
       dimensions: { width: 600, height: 700, depth: 350 },
       basePrice: 150,
       material: {
-        type: "Płyta melamina" as MaterialType,
+        type: "Płyta melamina",
         pricePerM2: 85,
         thickness: 18,
         color: "#B8956A",
-        textures: {
-          frontColor: "/textures/Wood094_1K-JPG_Color.jpg",
-          baseColor: "/textures/Wood094_1K-JPG_Color.jpg",
-          normal: "/textures/Wood094_1K-JPG_NormalDX.jpg",
-          roughness: "/textures/Wood094_1K-JPG_Roughness.jpg",
-        },
+        textures: woodTextureMap,
       },
-      frontType: "Gładki" as FrontType,
+      frontType: "Gładki",
       hardware: [
         { name: "Zawiasy", quantity: 4, pricePerUnit: 15 },
         { name: "Uchwyt", quantity: 1, pricePerUnit: 15 },
       ],
       snapPoints: {
-        left: true,
-        right: true,
-        top: false,
-        bottom: true,
-        back: true,
+        left: true, right: true, top: false, bottom: true, back: true,
       },
       isAppliance: false,
       shelfCount: 2,
-
       requiresSupport: false,
-    }
-  ],
-  Nadstawki: [
+    },
     {
-      name: "Nadstawka Podstawowa",
-      dimensions: { width: 600, height: 600, depth: 200 },
+      name: "Nadstawka",
+      dimensions: { width: 600, height: 600, depth: 350 },
       basePrice: 100,
       material: {
-        type: "Płyta melamina" as MaterialType,
+        type: "Płyta melamina",
         pricePerM2: 85,
         thickness: 18,
         color: "#F8956A",
-        textures: {
-          frontColor: "/textures/Wood094_1K-JPG_Color.jpg",
-          baseColor: "/textures/Wood094_1K-JPG_Color.jpg",
-          normal: "/textures/Wood094_1K-JPG_NormalDX.jpg",
-          roughness: "/textures/Wood094_1K-JPG_Roughness.jpg",
-        },
+        textures: woodTextureMap,
       },
-      frontType: "Gładki" as FrontType,
+      frontType: "Gładki",
       hardware: [
         { name: "Siłowniki", quantity: 2, pricePerUnit: 40 },
-        { name: "Zawiasy", quantity: 2, pricePerUnit: 15 }, // dodano zawiasy
+        { name: "Zawiasy", quantity: 2, pricePerUnit: 15 },
       ],
       snapPoints: {
-        left: true,
-        right: true,
-        top: false,
-        bottom: true,
-        back: true,
+        left: true, right: true, top: false, bottom: true, back: true,
       },
       isAppliance: false,
       shelfCount: 1,
-
       requiresSupport: false,
     }
   ],
-  Blaty: [
+  "Słupki": [
+    {
+      name: "Słupek spiżarniany",
+      dimensions: { width: 600, height: 2100, depth: 600 },
+      basePrice: 450,
+      material: {
+        type: "Płyta melamina",
+        pricePerM2: 85,
+        thickness: 18,
+        color: "#8B6F47",
+        textures: woodTextureMap,
+      },
+      frontType: "Gładki",
+      hardware: [
+        { name: "Zawiasy", quantity: 8, pricePerUnit: 15 },
+        { name: "Nóżki", quantity: 4, pricePerUnit: 6 },
+        { name: "Uchwyt", quantity: 2, pricePerUnit: 25 },
+      ],
+      snapPoints: {
+        left: true, right: true, top: true, bottom: false, back: true,
+      },
+      isAppliance: false,
+      shelfCount: 5,
+      requiresSupport: true,
+    },
+    {
+      name: "Słupek do zabudowy",
+      dimensions: { width: 600, height: 2100, depth: 600 },
+      basePrice: 400,
+      material: {
+        type: "Płyta melamina",
+        pricePerM2: 85,
+        thickness: 18,
+        color: "#A0826D",
+        textures: woodTextureMap,
+      },
+      frontType: "Gładki",
+      hardware: [
+        { name: "Zawiasy", quantity: 6, pricePerUnit: 15 },
+        { name: "Nóżki", quantity: 4, pricePerUnit: 6 },
+        { name: "Uchwyt", quantity: 2, pricePerUnit: 25 },
+      ],
+      snapPoints: {
+        left: true, right: true, top: true, bottom: false, back: true,
+      },
+      isAppliance: false,
+      shelfCount: 2,
+      requiresSupport: true,
+    }
+  ],
+  "Wyspy": [
+    {
+      name: "Wyspa z szufladami",
+      dimensions: { width: 1200, height: 850, depth: 900 },
+      basePrice: 600,
+      material: {
+        type: "Płyta melamina",
+        pricePerM2: 85,
+        thickness: 18,
+        color: "#8B6F47",
+        textures: woodTextureMap,
+      },
+      frontType: "Gładki",
+      hardware: [
+        { name: "Zawiasy", quantity: 8, pricePerUnit: 15 },
+        { name: "Nóżki", quantity: 8, pricePerUnit: 6 },
+        { name: "Uchwyt", quantity: 6, pricePerUnit: 25 },
+      ],
+      snapPoints: {
+        left: true, right: true, top: true, bottom: false, back: false,
+      },
+      isAppliance: false,
+      guides: 6,
+      requiresSupport: true,
+    }
+  ],
+  "Blaty": [
     {
       name: "Blat 60cm",
       dimensions: { width: 600, height: 40, depth: 600 },
       basePrice: 150,
       material: {
-        type: "Laminat" as MaterialType,
+        type: "Laminat",
         pricePerM2: 120,
         thickness: 36,
         color: "#2C3E50",
-        textures: {
-          baseColor: "/textures/Marble01_1K-JPG_Color.jpg",
-          normal: "/textures/Marble01_1K-JPG_NormalDX.jpg",
-          roughness: "/textures/Marble01_1K-JPG_Roughness.jpg",
-          repeat: [1, 1] as [number, number],
-        },
+        textures: woodTextureMap, // Replaced Marble with Wood to fix 404
       },
-      frontType: "Gładki" as FrontType,
+      frontType: "Gładki",
       hardware: [
         { name: "Klej montażowy", quantity: 1, pricePerUnit: 45 },
       ],
       snapPoints: {
-        left: true,
-        right: true,
-        top: false,
-        bottom: true,
-        back: false,
+        left: true, right: true, top: false, bottom: true, back: false,
       },
       isAppliance: false,
-
       requiresSupport: false,
     },
     {
@@ -341,54 +341,58 @@ export const FURNITURE_CATALOG = {
       dimensions: { width: 1200, height: 40, depth: 600 },
       basePrice: 300,
       material: {
-        type: "Laminat" as MaterialType,
+        type: "Laminat",
         pricePerM2: 120,
         thickness: 36,
         color: "#2C3E50",
-        textures: {
-          baseColor: "/textures/Marble01_1K-JPG_Color.jpg",
-          normal: "/textures/Marble01_1K-JPG_NormalDX.jpg",
-          roughness: "/textures/Marble01_1K-JPG_Roughness.jpg",
-          repeat: [2, 1] as [number, number], // Powtarzanie dłuższego blatu
-        },
+        textures: woodTextureMap,
       },
-      frontType: "Gładki" as FrontType,
+      frontType: "Gładki",
       hardware: [
         { name: "Klej montażowy", quantity: 1, pricePerUnit: 45 },
       ],
       snapPoints: {
-        left: true,
-        right: true,
-        top: false,
-        bottom: true,
-        back: false,
+        left: true, right: true, top: false, bottom: true, back: false,
       },
       isAppliance: false,
-
       requiresSupport: false,
     },
   ],
-  AGD: [
+  "AGD": [
+    {
+      name: "Zmywarka",
+      dimensions: { width: 600, height: 820, depth: 550 },
+      basePrice: 1200,
+      material: {
+        type: "MDF",
+        pricePerM2: 0,
+        thickness: 0,
+        color: "#95A5A6", // Silver metallic
+      },
+      frontType: "Gładki",
+      hardware: [],
+      snapPoints: {
+        left: false, right: false, top: false, bottom: false, back: true,
+      },
+      isAppliance: true,
+      requiresSupport: true,
+    },
     {
       name: "Piekarnik",
       dimensions: { width: 600, height: 600, depth: 550 },
-      basePrice: 150,
+      basePrice: 1500,
       material: {
-        type: "MDF" as MaterialType,
+        type: "MDF",
         pricePerM2: 0,
         thickness: 0,
-        color: "#34495E",
+        color: "#111111", // Black glass
       },
-      frontType: "Gładki" as FrontType,
+      frontType: "Szkło",
       hardware: [
         { name: "Prowadnice montażowe", quantity: 2, pricePerUnit: 40 },
       ],
       snapPoints: {
-        left: false,
-        right: false,
-        top: false,
-        bottom: false,
-        back: true,
+        left: false, right: false, top: false, bottom: false, back: true,
       },
       isAppliance: true,
       requiresSupport: true,
@@ -396,21 +400,17 @@ export const FURNITURE_CATALOG = {
     {
       name: "Okap",
       dimensions: { width: 600, height: 150, depth: 500 },
-      basePrice: 200,
+      basePrice: 800,
       material: {
-        type: "MDF" as MaterialType,
+        type: "MDF",
         pricePerM2: 0,
         thickness: 0,
-        color: "#95A5A6",
+        color: "#34495E", // Dark metal
       },
-      frontType: "Gładki" as FrontType,
+      frontType: "Gładki",
       hardware: [{ name: "Uchwyty montażowe", quantity: 2, pricePerUnit: 25 }],
       snapPoints: {
-        left: false,
-        right: false,
-        top: false,
-        bottom: true,
-        back: true,
+        left: false, right: false, top: false, bottom: true, back: true,
       },
       isAppliance: true,
       shelfCount: 0,
@@ -419,21 +419,17 @@ export const FURNITURE_CATALOG = {
     {
       name: "Mikrofala",
       dimensions: { width: 600, height: 300, depth: 500 },
-      basePrice: 150,
+      basePrice: 600,
       material: {
-        type: "MDF" as MaterialType,
+        type: "MDF",
         pricePerM2: 0,
         thickness: 0,
-        color: "#95A5A6",
+        color: "#111111", // Black glass
       },
-      frontType: "Szkło" as FrontType,
+      frontType: "Szkło",
       hardware: [],
       snapPoints: {
-        left: false,
-        right: false,
-        top: false,
-        bottom: true,
-        back: true,
+        left: false, right: false, top: false, bottom: true, back: true,
       },
       isAppliance: true,
       shelfCount: 0,
